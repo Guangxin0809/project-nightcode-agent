@@ -88,7 +88,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   const handleCommandExecute = useCallback((index: number) => {
     const command = resolveCommand(index);
     handleCommand(command);
-  }, []);
+  }, [resolveCommand, handleCommand]);
 
   onSubmitRef.current = () => {
     if (disabled) return;
