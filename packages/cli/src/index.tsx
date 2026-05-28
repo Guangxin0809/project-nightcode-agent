@@ -3,8 +3,15 @@ import { createCliRenderer } from "@opentui/core";
 
 import { Header } from "./components/header";
 import { InputBar } from "./components/input-bar";
+import { ToastProvider } from "./providers/toast";
+import { DialogProvider } from "./providers/dialog";
+import { ThemeProvider, useTheme } from "./providers/theme";
+import { KeyboardLayerProvider } from "./providers/keyboard-layer";
 
-function App() {
+function ThemeRoot() {
+
+  const { colors } = useTheme();
+
   return (
     <box
       justifyContent="center"
@@ -12,13 +19,28 @@ function App() {
       gap={2}
       width="100%"
       height="100%"
-      backgroundColor="#0D0D12"
+      backgroundColor={colors.background}
     >
       <Header />
       <box width="100%" maxWidth={78} paddingX={2}>
         <InputBar onSubmit={() => {}} />
       </box>
     </box>
+  );
+
+};
+
+function App() {
+  return (
+    <ThemeProvider>
+      <KeyboardLayerProvider>
+        <DialogProvider>
+          <ToastProvider>
+            <ThemeRoot />
+          </ToastProvider>
+        </DialogProvider>
+      </KeyboardLayerProvider>
+    </ThemeProvider>
   );
 }
 
