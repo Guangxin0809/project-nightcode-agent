@@ -4,6 +4,7 @@ import { useRef, useState, useMemo, type RefObject } from "react";
 
 import type { Command } from "./types";
 import { getFilteredCommands } from "./filter-commands";
+import { useKeyboardLayer } from "../../providers/keyboard-layer";
 
 type UseCommandMenuReturn = {
   showCommandMenu: boolean;
@@ -21,12 +22,18 @@ export function useCommandMenu(): UseCommandMenuReturn {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const scrollRef = useRef<ScrollBoxRenderable>(null);
+  const { push, pop, isTopLayer } = useKeyboardLayer();
 
   const commandQuery = showCommandMenu && textValue.startsWith("/")
     ? textValue.slice(1)
     : "";
 
   const filteredCommands = useMemo(() => getFilteredCommands(commandQuery), [commandQuery]);
+
+  const closeCommandMenu = () => {
+    setShowCommandMenu(false);
+    pop("command");
+  };
 
   const handleContentChange = (text: string) => {
     setTextValue(text);
@@ -41,8 +48,12 @@ export function useCommandMenu(): UseCommandMenuReturn {
     const prefix = text.startsWith("/") ? text.slice(1) : null;
     if ((prefix !== null) && !prefix.includes(" ")) {
       setShowCommandMenu(true);
+      push("command", () => {
+        closeCommandMenu();
+        return true;
+      });
     } else {
-      setShowCommandMenu(false);
+      closeCommandMenu();
     };
   };
 
@@ -50,7 +61,7 @@ export function useCommandMenu(): UseCommandMenuReturn {
   const resolveCommand = (index: number): Command | undefined => {
     const command = filteredCommands[index];
     if (command) {
-      setShowCommandMenu(false);
+      closeCommandMenu();
     }
     return command;
   };
@@ -58,11 +69,11 @@ export function useCommandMenu(): UseCommandMenuReturn {
   // Arrow keys move selection, the list follows along when the highlight goes off-screen
   useKeyboard((key) => {
 
-    if (!showCommandMenu) return;
+    if (!showCommandMenu || !isTopLayer("command")) return;
 
     if (key.name === "escape") {
       key.preventDefault();
-      setShowCommandMenu(false);
+      closeCommandMenu();
     } else if (key.name === "up") {
       key.preventDefault();
       setSelectedIndex((index: number) => {

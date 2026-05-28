@@ -1,0 +1,145 @@
+import type { ReactNode } from "react";
+import { useKeyboard } from "@opentui/react";
+import { TextAttributes } from "@opentui/core";
+import { useCallback, useRef, useState } from "react";
+import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
+
+import { useTheme } from "../providers/theme";
+import { useKeyboardLayer } from "../providers/keyboard-layer";
+
+const MAX_VISIBLE_ITEMS = 6;
+
+type DialogSearchListProps<T> = {
+  items: T[];
+  onSelect: (item: T) => void;
+  filterFn: (item: T, query: string) => boolean;
+  renderItem: (item: T, isSelected: boolean) => ReactNode;
+  getKey: (item: T) => string;
+  onHighlight?: (item: T) => void;
+  placeholder?: string;
+  emptyText?: string;
+};
+
+export function DialogSearchList<T>({
+  items,
+  onSelect,
+  onHighlight,
+  filterFn,
+  renderItem,
+  getKey,
+  placeholder = "Search",
+  emptyText = "No results"
+}: DialogSearchListProps<T>) {
+
+  const [searchValue, setSearchValue] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const scrollRef = useRef<ScrollBoxRenderable>(null);
+  const inputRef = useRef<InputRenderable>(null);
+  const { isTopLayer } = useKeyboardLayer();
+  const { colors } = useTheme();
+
+  const handleContentChange = useCallback(() => {
+
+    const text = inputRef.current?.value ?? "";
+    setSearchValue(text);
+    setSelectedIndex(0);
+
+    const scrollbox = scrollRef.current;
+    if (scrollbox) {
+      scrollbox.scrollTo(0);
+    }
+
+  }, []);
+
+  const filtered = searchValue
+    ? items.filter(item => filterFn(item, searchValue))
+    : items;
+
+  const visibleHeight = Math.min(filtered.length, MAX_VISIBLE_ITEMS);
+
+  useKeyboard((key) => {
+
+    if (!isTopLayer("dialog")) return;
+
+    if ((key.name === "return") || (key.name === "enter")) {
+      const item = filtered[selectedIndex];
+      if (item) {
+        onSelect(item);
+      }
+    } else if (key.name === "up") {
+      setSelectedIndex(i => {
+        const newIndex = Math.max(0, i - 1);
+        const scrollBar = scrollRef.current;
+        if (scrollBar && (newIndex < scrollBar.scrollTop)) {
+          scrollBar.scrollTo(newIndex);
+        }
+
+        const item = filtered[newIndex];
+        if (item && onHighlight) onHighlight(item);
+        return newIndex;
+      });
+    } else if (key.name === "down") {
+      setSelectedIndex((index) => {
+
+        const newIndex = Math.min(filtered.length - 1, index + 1);
+        const scrollBar = scrollRef.current;
+        if (scrollBar) {
+          const viewportHeight = scrollBar.viewport.height;
+          const visibleEnd = scrollBar.scrollTop + viewportHeight - 1;
+          if (newIndex > visibleEnd) {
+            scrollBar?.scrollTo(newIndex - viewportHeight + 1);
+          }
+        }
+
+        const item = filtered[newIndex];
+        if (item && onHighlight) onHighlight(item);
+        return newIndex;
+
+      });
+    }
+
+  });
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <input
+        ref={inputRef}
+        placeholder={placeholder}
+        focused
+        onContentChange={handleContentChange}
+      />
+
+      {filtered.length === 0 ? (
+        <text attributes={TextAttributes.DIM}>
+          {emptyText}
+        </text>
+      ) : (
+        <scrollbox ref={scrollRef} height={visibleHeight}>
+          {filtered.map((item, index) => {
+
+            const isSelected = index === selectedIndex;
+
+            return (
+              <box
+                key={getKey(item)}
+                flexDirection="row"
+                height={1}
+                backgroundColor={isSelected ? colors.selection : undefined}
+                overflow="hidden"
+                onMouseMove={() => {
+                  setSelectedIndex(index);
+                  if (onHighlight) onHighlight(item);
+                }}
+                onMouseDown={() => onSelect(item)}
+              >
+                {renderItem(item, isSelected)}
+              </box>
+            );
+
+          })}
+        </scrollbox>
+      )}
+    </box>
+  );
+
+};
