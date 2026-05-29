@@ -7,5 +7,9 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.15"
+  },
+  "dependencies": {
+    "opentui-spinner": "^0.0.6",
+    "react-router": "^7.16.0"
   }
 }
